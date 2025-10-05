@@ -13,30 +13,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install uv
+      - name: Set up uv
         uses: astral-sh/setup-uv@v5
+
+      - name: Create virtual environment
+        run: uv venv
 
       - name: Cache uv dependencies
         uses: actions/cache@v4
-        id: cache-uv # Give the step an id to check its output
+        id: cache-uv
         with:
           path: ~/.cache/uv
           key: cache-e2c0f27
 
       - name: prime-cache-e2c0f27
-        run: | # python
-          uv run --with requests python << 'EOF'
-          import requests
-
-          data = requests.get('http://api.open-notify.org/iss-now.json').text
-          with open('iss-location.jsonl', 'a') as f:
-              f.write(data + '\n')
-          'EOF'
-
-      - name: Commit and push changes
-        run: | # shell
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add iss-location.jsonl
-          git commit -m "Update ISS position data [skip ci]" || exit 0
-          git push
+        run: |
+          if [[ "${{ steps.cache-uv.outputs.cache-hit }}" == "true" ]]; then
+            echo "prime-cache-e2c0f27: Cache hit! Dependencies were restored."
+          else
+            echo "prime-cache-e2c0f27: Cache miss. Dependencies were installed and cache will be saved."
+          fi
