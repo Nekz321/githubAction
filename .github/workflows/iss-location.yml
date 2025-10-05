@@ -1,16 +1,13 @@
-name: Log ISS Location Data Daily
+name: CI with Caching
 
 on:
-  schedule:
-    # Runs at 12:00 UTC (noon) every day
-    - cron: "0 12 * * *"
-  workflow_dispatch: # Allows manual triggering
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
-  collect-iss-data:
+  build-with-cache:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
       - name: Checkout repository
@@ -19,7 +16,14 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
-      - name: Fetch ISS location data
+      - name: Cache uv dependencies
+        uses: actions/cache@v4
+        id: cache-uv # Give the step an id to check its output
+        with:
+          path: ~/.cache/uv
+          key: cache-e2c0f27
+
+      - name: prime-cache-e2c0f27
         run: | # python
           uv run --with requests python << 'EOF'
           import requests
