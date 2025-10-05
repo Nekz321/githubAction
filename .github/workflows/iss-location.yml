@@ -1,38 +1,38 @@
-name: CI with Caching
+name: Log ISS Location Data Daily
 
 on:
-  push:
-    branches: [ "main" ]
-  workflow_dispatch:
+  schedule:
+    # Runs at 12:00 UTC (noon) every day
+    - cron: "0 12 * * *"
+  workflow_dispatch: # Allows manual triggering
 
 jobs:
-  build-with-cache:
+  collect-iss-data:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up uv
+      - name: Install uv
         uses: astral-sh/setup-uv@v5
-      
-      - name: Create virtual environment
-        run: uv venv
 
-      - name: Cache uv dependencies
-        uses: actions/cache@v4
-        id: cache-uv # Give the step an id to check its output
-        with:
-          path: ~/.cache/uv
-          key: cache-e2c0f27
+      - name: Fetch ISS location data
+        run: | # python
+          uv run --with requests python << 'EOF'
+          import requests
 
-      - name: Install dependencies
-        run: uv pip install -r requirements.txt
+          data = requests.get('http://api.open-notify.org/iss-now.json').text
+          with open('iss-location.jsonl', 'a') as f:
+              f.write(data + '\n')
+          'EOF'
 
-      - name: prime-cache-e2c0f27
-        run: |
-          if [[ "${{ steps.cache-uv.outputs.cache-hit }}" == "true" ]]; then
-            echo "Cache hit! Dependencies were restored."
-          else
-            echo "Cache miss. Dependencies were installed and cache will be saved."
-          fi
+      - name: Commit and push changes
+        run: | # shell
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add iss-location.jsonl
+          git commit -m "Update ISS position data [skip ci]" || exit 0
+          git push
